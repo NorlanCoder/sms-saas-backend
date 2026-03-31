@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ApiKeyController;
+use App\Http\Controllers\Api\CreditController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -16,5 +17,12 @@ Route::prefix('v1')->group(function () {
         // Gestion des clés API
         Route::get('/keys', [ApiKeyController::class, 'index']);
         Route::post('/keys/regenerate', [ApiKeyController::class, 'regenerate']);
+
+        // Gestion des crédits
+        Route::prefix('credits')->group(function () {
+            Route::get('/balance', [CreditController::class, 'balance']);
+            Route::post('/recharge', [CreditController::class, 'recharge']);
+            Route::get('/transactions', [CreditController::class, 'transactions']);
+        });
     });
 });
