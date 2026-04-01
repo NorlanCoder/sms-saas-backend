@@ -72,6 +72,7 @@ class Company extends Authenticatable
     public function countries(): BelongsToMany
     {
         return $this->belongsToMany('App\\Models\\Country', 'company_countries')
+            ->withPivot('actif')
             ->withTimestamps();
     }
 }
