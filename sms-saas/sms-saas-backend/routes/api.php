@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ApiKeyController;
 use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\CreditController;
+use App\Http\Controllers\Api\SenderIdController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -36,6 +37,14 @@ Route::prefix('v1')->group(function () {
             Route::get('/active', [CountryController::class, 'active']);
             Route::post('/activate', [CountryController::class, 'activate']);
             Route::post('/deactivate', [CountryController::class, 'deactivate']);
+        });
+
+        // Gestion des SENDER_IDs
+        Route::prefix('sender-ids')->group(function () {
+            Route::get('/', [SenderIdController::class, 'index']);
+            Route::post('/', [SenderIdController::class, 'store']);
+            Route::get('/{id}', [SenderIdController::class, 'show']);
+            Route::delete('/{id}', [SenderIdController::class, 'destroy']);
         });
     });
 });
