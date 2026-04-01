@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ApiKeyController;
 use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\CreditController;
 use App\Http\Controllers\Api\SenderIdController;
+use App\Http\Controllers\Api\SmsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -47,4 +48,14 @@ Route::prefix('v1')->group(function () {
             Route::delete('/{id}', [SenderIdController::class, 'destroy']);
         });
     });
+});
+
+// Envoi SMS — protégé par signature RSA + rate limiting
+Route::middleware(['verify.api.signature', 'throttle:60,1'])->prefix('v1')->group(function () {
+    Route::post('/send-sms', [SmsController::class, 'send']);
+});
+
+// Statut batch — protégé par Sanctum
+Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
+    Route::get('/sms/status/{batchId}', [SmsController::class, 'batchStatus']);
 });
