@@ -118,6 +118,13 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'api' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/api.log'),
+            'level' => 'info',
+            'days' => 30,
+        ],
+
         'null' => [
             'driver' => 'monolog',
             'handler' => NullHandler::class,
