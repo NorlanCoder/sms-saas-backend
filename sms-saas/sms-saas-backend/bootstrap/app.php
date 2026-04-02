@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
         $middleware->alias([
+            'is.admin' => \App\Http\Middleware\IsAdmin::class,
             'verify.api.signature' => \App\Http\Middleware\VerifyApiSignature::class,
         ]);
     })
