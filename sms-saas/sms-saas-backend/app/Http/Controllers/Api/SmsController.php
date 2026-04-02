@@ -217,11 +217,12 @@ class SmsController extends Controller
     private function resolveCountryFromNumber(string $recipient): ?Country
     {
         $normalizedRecipient = preg_replace('/\s+/', '', $recipient) ?? $recipient;
+        $lengthFunction = DB::getDriverName() === 'sqlite' ? 'LENGTH' : 'CHAR_LENGTH';
 
         /** @var Country|null $country */
         $country = Country::query()
             ->active()
-            ->orderByRaw('CHAR_LENGTH(code_indicatif) DESC')
+            ->orderByRaw($lengthFunction.'(code_indicatif) DESC')
             ->get()
             ->first(fn (Country $item): bool => str_starts_with($normalizedRecipient, $item->code_indicatif));
 

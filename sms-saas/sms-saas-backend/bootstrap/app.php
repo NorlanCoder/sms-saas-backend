@@ -13,9 +13,14 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
+        $middleware->api(append: [
+            \App\Http\Middleware\ApiLogger::class,
+        ]);
+
         $middleware->alias([
             'is.admin' => \App\Http\Middleware\IsAdmin::class,
             'verify.api.signature' => \App\Http\Middleware\VerifyApiSignature::class,
+            'api.logger' => \App\Http\Middleware\ApiLogger::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
