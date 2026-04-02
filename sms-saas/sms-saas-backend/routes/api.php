@@ -4,7 +4,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ApiKeyController;
 use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\CreditController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SenderIdController;
+use App\Http\Controllers\Api\SmsLogController;
 use App\Http\Controllers\Api\SmsController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +35,15 @@ Route::prefix('v1')->group(function () {
             Route::post('/recharge', [CreditController::class, 'recharge']);
             Route::get('/transactions', [CreditController::class, 'transactions']);
         });
+
+        // Dashboard
+        Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+
+        // Logs SMS
+        Route::get('/sms/logs', [SmsLogController::class, 'index']);
+
+        // Rapports
+        Route::get('/reports/export', [ReportController::class, 'export']);
 
         // Gestion des pays
         Route::prefix('countries')->group(function () {
