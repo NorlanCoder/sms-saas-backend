@@ -28,7 +28,10 @@ class SmsLogController extends Controller
             'date_fin' => ['nullable', 'date_format:Y-m-d'],
             'sender_id' => ['nullable', 'integer'],
             'destinataire' => ['nullable', 'string'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
+
+        $perPage = (int) ($filters['per_page'] ?? 20);
 
         $query = SmsLog::query()
             ->where('company_id', $company->id)
@@ -60,7 +63,7 @@ class SmsLogController extends Controller
 
         $logs = $query
             ->orderByDesc('created_at')
-            ->paginate(20);
+            ->paginate($perPage);
 
         return response()->json([
             'data' => $logs->getCollection()->map(fn (SmsLog $log): array => [
@@ -78,6 +81,7 @@ class SmsLogController extends Controller
                 'current_page' => $logs->currentPage(),
                 'total' => $logs->total(),
                 'per_page' => $logs->perPage(),
+                'last_page' => $logs->lastPage(),
             ],
         ], 200);
     }

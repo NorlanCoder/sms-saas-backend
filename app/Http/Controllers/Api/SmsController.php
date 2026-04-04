@@ -27,7 +27,10 @@ class SmsController extends Controller
 
     public function send(SendSmsRequest $request): JsonResponse
     {
-        $company = $request->authenticated_company;
+        /** @var Company|null $company */
+        $company = $request->authenticated_company instanceof Company
+            ? $request->authenticated_company
+            : $request->user();
 
         if (! $company instanceof Company) {
             return response()->json([
