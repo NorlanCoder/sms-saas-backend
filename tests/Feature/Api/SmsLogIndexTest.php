@@ -123,6 +123,7 @@ class SmsLogIndexTest extends TestCase
             ->assertJsonPath('meta.current_page', 1)
             ->assertJsonPath('meta.per_page', 20)
             ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.last_page', 1)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $matchingLog->id)
             ->assertJsonPath('data.0.statut', 'envoye')
@@ -160,6 +161,7 @@ class SmsLogIndexTest extends TestCase
             ->assertJsonPath('meta.current_page', 1)
             ->assertJsonPath('meta.per_page', 20)
             ->assertJsonPath('meta.total', 25)
+            ->assertJsonPath('meta.last_page', 2)
             ->assertJsonCount(20, 'data');
 
         Carbon::setTestNow();
@@ -254,7 +256,43 @@ class SmsLogIndexTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.last_page', 1)
             ->assertJsonPath('data.0.message', 'Dans borne');
+
+        Carbon::setTestNow();
+    }
+
+    public function test_index_supports_custom_per_page_for_dashboard_recent_sms(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-02 12:00:00'));
+
+        $company = $this->createCompany('per-page-dashboard@example.test');
+        $sender = $this->createSender($company, 'PERPAGE');
+
+        for ($i = 1; $i <= 7; $i++) {
+            SmsLog::query()->forceCreate([
+                'company_id' => $company->id,
+                'sender_id' => $sender->id,
+                'destinataire' => '+2299700'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
+                'message' => 'SMS dashboard '.$i,
+                'statut' => 'envoye',
+                'cout' => 0.0100,
+                'created_at' => Carbon::parse('2026-04-02 12:00:00')->subMinutes($i),
+                'updated_at' => Carbon::parse('2026-04-02 12:00:00')->subMinutes($i),
+            ]);
+        }
+
+        Sanctum::actingAs($company);
+
+        $response = $this->getJson('/api/v1/sms/logs?per_page=5');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.per_page', 5)
+            ->assertJsonPath('meta.total', 7)
+            ->assertJsonPath('meta.last_page', 2)
+            ->assertJsonCount(5, 'data');
 
         Carbon::setTestNow();
     }

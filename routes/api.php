@@ -28,8 +28,11 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
+        Route::post('/logout-all', [AuthController::class, 'logoutAll']);
         Route::get('/profile', [AuthController::class, 'profile']);
         Route::put('/profile', [AuthController::class, 'updateProfile']);
+        Route::put('/profile/password', [AuthController::class, 'updatePassword']);
+        Route::delete('/profile', [AuthController::class, 'deleteAccount']);
 
         // Gestion des clés API
         Route::get('/keys', [ApiKeyController::class, 'index']);
@@ -46,6 +49,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
 
         // Logs SMS
+        Route::post('/sms/send', [SmsController::class, 'send']);
         Route::get('/sms/logs', [SmsLogController::class, 'index']);
 
         // Rapports

@@ -123,4 +123,99 @@ class AuthTest extends TestCase
 
         $response->assertStatus(401);
     }
+
+    public function test_company_can_update_password(): void
+    {
+        $company = Company::factory()->create([
+            'password' => Hash::make('old-password-123'),
+        ]);
+
+        $tokenA = $company->createToken('token-a')->plainTextToken;
+        $company->createToken('token-b');
+
+        $response = $this->putJson('/api/v1/profile/password', [
+            'current_password' => 'old-password-123',
+            'password' => 'new-password-456',
+            'password_confirmation' => 'new-password-456',
+        ], [
+            'Authorization' => 'Bearer '.$tokenA,
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Mot de passe mis à jour avec succès',
+            ]);
+
+        $company->refresh();
+
+        $this->assertTrue(Hash::check('new-password-456', $company->password));
+        $this->assertFalse(Hash::check('old-password-123', $company->password));
+        $this->assertSame(1, $company->tokens()->count());
+    }
+
+    public function test_update_password_fails_with_wrong_current_password(): void
+    {
+        $company = Company::factory()->create([
+            'password' => Hash::make('old-password-123'),
+        ]);
+
+        $token = $company->createToken('token-main')->plainTextToken;
+
+        $response = $this->putJson('/api/v1/profile/password', [
+            'current_password' => 'invalid-password',
+            'password' => 'new-password-456',
+            'password_confirmation' => 'new-password-456',
+        ], [
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertStatus(401)
+            ->assertJsonValidationErrors(['current_password']);
+    }
+
+    public function test_company_can_logout_all_devices(): void
+    {
+        $company = Company::factory()->create();
+        $token = $company->createToken('token-a')->plainTextToken;
+        $company->createToken('token-b');
+
+        $response = $this->postJson('/api/v1/logout-all', [], [
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Déconnexion de tous les appareils réussie',
+            ]);
+
+        $this->assertSame(0, $company->tokens()->count());
+    }
+
+    public function test_company_can_delete_account_with_confirmation_name(): void
+    {
+        $company = Company::factory()->create([
+            'nom' => 'SMSSaas Test',
+        ]);
+
+        $token = $company->createToken('token-main')->plainTextToken;
+
+        $response = $this->deleteJson('/api/v1/profile', [
+            'confirmation_name' => 'SMSSaas Test',
+        ], [
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Compte supprimé avec succès',
+            ]);
+
+        $this->assertDatabaseMissing('companies', [
+            'id' => $company->id,
+        ]);
+    }
 }
