@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
-class AdminAuthController extends Controller
+class SuperAdminAuthController extends Controller
 {
     public function login(Request $request): JsonResponse
     {
@@ -26,18 +26,18 @@ class AdminAuthController extends Controller
             ], 401);
         }
 
-        if (($admin->role ?? 'admin') !== 'admin') {
+        if (($admin->role ?? 'admin') !== 'super_admin') {
             return response()->json([
-                'message' => 'Accès admin requis',
+                'message' => 'Accès super admin requis',
             ], 403);
         }
 
         $admin->tokens()->delete();
 
-        $token = $admin->createToken('admin-token', ['admin'])->plainTextToken;
+        $token = $admin->createToken('super-admin-token', ['admin', 'super-admin'])->plainTextToken;
 
         return response()->json([
-            'message' => 'Connexion admin réussie',
+            'message' => 'Connexion super admin réussie',
             'token' => $token,
             'admin' => [
                 'id' => $admin->id,

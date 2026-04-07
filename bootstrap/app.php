@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'is.admin' => \App\Http\Middleware\IsAdmin::class,
+            'is.super_admin' => \App\Http\Middleware\IsSuperAdmin::class,
             'verify.api.signature' => \App\Http\Middleware\VerifyApiSignature::class,
             'api.logger' => \App\Http\Middleware\ApiLogger::class,
         ]);

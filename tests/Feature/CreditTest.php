@@ -60,6 +60,64 @@ class CreditTest extends TestCase
         ]);
     }
 
+    public function test_can_recharge_with_pawapay_method(): void
+    {
+        $company = Company::factory()->create(['solde' => 200.00]);
+        $token = $company->createToken('test-token')->plainTextToken;
+
+        $response = $this->postJson('/api/v1/credits/recharge', [
+            'montant' => 150,
+            'methode' => 'pawapay',
+            'phone' => '+22996000000',
+            'pawapay_status' => 'success',
+        ], [
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('payment.provider', 'pawapay')
+            ->assertJsonPath('payment.status', 'success');
+
+        $this->assertSame(350.0, (float) $company->fresh()->solde);
+
+        $this->assertDatabaseHas('transactions', [
+            'company_id' => $company->id,
+            'type' => 'recharge',
+            'montant' => '150.00',
+            'description' => 'Recharge via pawapay',
+        ]);
+    }
+
+    public function test_pawapay_failure_does_not_add_credit(): void
+    {
+        $company = Company::factory()->create(['solde' => 200.00]);
+        $token = $company->createToken('test-token')->plainTextToken;
+
+        $response = $this->postJson('/api/v1/credits/recharge', [
+            'montant' => 150,
+            'methode' => 'pawapay',
+            'phone' => '+22996000000',
+            'pawapay_status' => 'failed',
+        ], [
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertStatus(402)
+            ->assertJsonPath('payment.provider', 'pawapay')
+            ->assertJsonPath('payment.status', 'failed');
+
+        $this->assertSame(200.0, (float) $company->fresh()->solde);
+
+        $this->assertDatabaseMissing('transactions', [
+            'company_id' => $company->id,
+            'type' => 'recharge',
+            'montant' => '150.00',
+            'description' => 'Recharge via pawapay',
+        ]);
+    }
+
     public function test_transactions_history_is_paginated(): void
     {
         $company = Company::factory()->create();

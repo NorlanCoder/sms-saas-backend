@@ -6,7 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
-class AdminSeeder extends Seeder
+class SuperAdminSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -14,11 +14,11 @@ class AdminSeeder extends Seeder
     public function run(): void
     {
         User::updateOrCreate(
-            ['email' => 'admin@sms-saas.com'],
+            ['email' => 'superadmin@sms-saas.com'],
             [
-                'name' => 'Admin',
-                'password' => Hash::make('Admin@1234'),
-                'role' => 'admin',
+                'name' => 'Super Admin',
+                'password' => Hash::make('SuperAdmin@1234'),
+                'role' => 'super_admin',
             ]
         );
     }

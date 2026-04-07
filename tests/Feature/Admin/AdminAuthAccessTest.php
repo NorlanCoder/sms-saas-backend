@@ -30,10 +30,30 @@ class AdminAuthAccessTest extends TestCase
             ->assertOk()
             ->assertJsonPath('message', 'Connexion admin réussie')
             ->assertJsonPath('admin.email', 'admin@sms-saas.com')
+            ->assertJsonPath('admin.role', 'admin')
             ->assertJsonStructure([
                 'token',
-                'admin' => ['id', 'name', 'email'],
+                'admin' => ['id', 'name', 'email', 'role'],
             ]);
+    }
+
+    public function test_admin_login_returns_403_for_super_admin_role(): void
+    {
+        User::query()->create([
+            'name' => 'Super Admin',
+            'email' => 'superadmin@sms-saas.com',
+            'password' => Hash::make('SuperAdmin@1234'),
+            'role' => 'super_admin',
+        ]);
+
+        $response = $this->postJson('/api/admin/login', [
+            'email' => 'superadmin@sms-saas.com',
+            'password' => 'SuperAdmin@1234',
+        ]);
+
+        $response
+            ->assertStatus(403)
+            ->assertJsonPath('message', 'Accès admin requis');
     }
 
     public function test_admin_login_returns_401_for_invalid_credentials(): void
@@ -104,6 +124,22 @@ class AdminAuthAccessTest extends TestCase
         $this->getJson('/api/admin/companies')
             ->assertStatus(403)
             ->assertJsonPath('message', 'Accès refusé');
+    }
+
+    public function test_super_admin_user_is_forbidden_on_admin_routes(): void
+    {
+        $superAdmin = User::query()->create([
+            'name' => 'Super Admin',
+            'email' => 'super-admin-admin-route@example.test',
+            'password' => Hash::make('SuperAdmin@1234'),
+            'role' => 'super_admin',
+        ]);
+
+        Sanctum::actingAs($superAdmin, ['admin', 'super-admin']);
+
+        $this->getJson('/api/admin/companies')
+            ->assertStatus(403)
+            ->assertJsonPath('message', 'Accès admin requis');
     }
 
     private function createCompany(string $email): Company
