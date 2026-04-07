@@ -101,4 +101,61 @@ class SmsAuthenticatedRouteTest extends TestCase
             ->assertStatus(403)
             ->assertJsonPath('message', 'SENDER_ID invalide ou non validé');
     }
+
+    public function test_authenticated_sms_send_route_debits_balance_after_pawapay_recharge(): void
+    {
+        $company = Company::factory()->create(['solde' => 0.00]);
+        $sender = SenderID::factory()->create([
+            'company_id' => $company->id,
+            'nom' => 'MYBRAND',
+            'statut' => 'valide',
+        ]);
+
+        $country = Country::factory()->create([
+            'code_pays' => 'SN',
+            'code_indicatif' => '+221',
+            'tarif_sms' => 25.00,
+            'statut' => true,
+        ]);
+
+        DB::table('company_countries')->insert([
+            'company_id' => $company->id,
+            'country_id' => $country->id,
+            'actif' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        Sanctum::actingAs($company);
+
+        $this->postJson('/api/v1/credits/recharge', [
+            'montant' => 100,
+            'methode' => 'pawapay',
+            'phone' => '+22996000000',
+            'pawapay_status' => 'success',
+        ])->assertOk();
+
+        $this->assertSame(100.0, (float) $company->fresh()->solde);
+
+        $this->mock(SmsProviderService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('send')
+                ->once()
+                ->andReturn([
+                    'success' => true,
+                    'message_id' => 'provider-message-id',
+                    'status' => 'envoye',
+                ]);
+        });
+
+        $this->postJson('/api/v1/sms/send', [
+            'to' => '+221771234567',
+            'message' => 'Message de test',
+            'sender_id' => $sender->nom,
+        ])
+            ->assertOk()
+            ->assertJsonPath('statut', 'envoye')
+            ->assertJsonPath('cout', 25);
+
+        $this->assertSame(75.0, (float) $company->fresh()->solde);
+    }
 }

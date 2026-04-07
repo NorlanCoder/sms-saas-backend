@@ -7,12 +7,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Transaction;
 use App\Services\CreditService;
+use App\Services\PawaPayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CreditController extends Controller
 {
-    public function __construct(private readonly CreditService $creditService)
+    public function __construct(
+        private readonly CreditService $creditService,
+        private readonly PawaPayService $pawaPayService,
+    )
     {
     }
 
@@ -46,20 +50,53 @@ class CreditController extends Controller
 
         $validated = $request->validate([
             'montant' => ['required', 'numeric', 'min:1'],
-            'methode' => ['required', 'in:mobile_money,carte_bancaire'],
-            'phone' => ['required_if:methode,mobile_money', 'string'],
+            'methode' => ['required', 'in:mobile_money,carte_bancaire,pawapay'],
+            'phone' => ['required_if:methode,mobile_money,pawapay', 'string'],
+            'pawapay_status' => ['nullable', 'in:success,failed'],
         ]);
 
         $amount = (float) $validated['montant'];
         $description = 'Recharge via '.$validated['methode'];
 
+        if ($validated['methode'] === 'pawapay') {
+            $payment = $this->pawaPayService->initiateDeposit(
+                $amount,
+                (string) $validated['phone'],
+                $validated['pawapay_status'] ?? null,
+            );
+
+            if ($payment['status'] !== 'success') {
+                return response()->json([
+                    'message' => $payment['message'],
+                    'payment' => $payment,
+                    'solde' => round($this->creditService->getBalance((int) $company->id), 2),
+                ], 402);
+            }
+        } else {
+            $payment = [
+                'provider' => $validated['methode'],
+                'status' => 'success',
+                'reference' => null,
+                'message' => 'Paiement simulé avec succès.',
+            ];
+        }
+
+        if ($payment['status'] !== 'success') {
+            return response()->json([
+                'message' => $payment['message'],
+                'payment' => $payment,
+                'solde' => round($this->creditService->getBalance((int) $company->id), 2),
+            ], 402);
+        }
+
         try {
-            // Stub temporaire: paiement considéré confirmé.
+            // Le crédit n'est ajouté qu'après confirmation fournisseur/sandbox.
             $transaction = $this->creditService->addCredit((int) $company->id, $amount, $description);
 
             return response()->json([
                 'message' => 'Rechargement effectué avec succès',
                 'solde' => round($this->creditService->getBalance((int) $company->id), 2),
+                'payment' => $payment,
                 'transaction' => [
                     'id' => $transaction->id,
                     'type' => $transaction->type,

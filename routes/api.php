@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\AdminCountryController;
 use App\Http\Controllers\Admin\AdminSenderIdController;
 use App\Http\Controllers\Admin\AdminSmsLogController;
 use App\Http\Controllers\Admin\AdminTransactionController;
+use App\Http\Controllers\SuperAdmin\SuperAdminAuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -87,9 +88,41 @@ Route::prefix('admin')->group(function () {
     Route::post('/login', [AdminAuthController::class, 'login']);
 });
 
+// Routes super admin publiques
+Route::prefix('super-admin')->group(function () {
+    Route::post('/login', [SuperAdminAuthController::class, 'login']);
+});
+
 // Routes admin protégées
 Route::prefix('admin')->middleware(['auth:sanctum', 'is.admin'])->group(function () {
     Route::post('/logout', [AdminAuthController::class, 'logout']);
+
+    // Gestion des companies
+    Route::get('/companies', [AdminCompanyController::class, 'index']);
+    Route::get('/companies/{id}', [AdminCompanyController::class, 'show']);
+    Route::put('/companies/{id}/status', [AdminCompanyController::class, 'updateStatus']);
+
+    // Gestion des SENDER_IDs
+    Route::get('/sender-ids', [AdminSenderIdController::class, 'index']);
+    Route::put('/sender-ids/{id}/approve', [AdminSenderIdController::class, 'approve']);
+    Route::put('/sender-ids/{id}/reject', [AdminSenderIdController::class, 'reject']);
+    Route::put('/sender-ids/{id}/suspend', [AdminSenderIdController::class, 'suspend']);
+
+    // Gestion des pays
+    Route::get('/countries', [AdminCountryController::class, 'index']);
+    Route::put('/countries/{id}/tariff', [AdminCountryController::class, 'updateTariff']);
+    Route::put('/countries/{id}/status', [AdminCountryController::class, 'updateStatus']);
+
+    // Logs SMS globaux
+    Route::get('/sms/logs', [AdminSmsLogController::class, 'index']);
+
+    // Transactions globales
+    Route::get('/transactions', [AdminTransactionController::class, 'index']);
+});
+
+// Routes super admin protégées
+Route::prefix('super-admin')->middleware(['auth:sanctum', 'is.super_admin'])->group(function () {
+    Route::post('/logout', [SuperAdminAuthController::class, 'logout']);
 
     // Gestion des companies
     Route::get('/companies', [AdminCompanyController::class, 'index']);

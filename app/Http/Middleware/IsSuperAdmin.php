@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class IsAdmin
+class IsSuperAdmin
 {
     public function handle(Request $request, Closure $next): Response|JsonResponse
     {
@@ -26,13 +26,13 @@ class IsAdmin
             ], 403);
         }
 
-        if (($user->role ?? 'admin') !== 'admin') {
+        if (($user->role ?? 'admin') !== 'super_admin') {
             return response()->json([
-                'message' => 'Accès admin requis',
+                'message' => 'Accès super admin requis',
             ], 403);
         }
 
-        if ($user->currentAccessToken() && ! $user->tokenCan('admin')) {
+        if ($user->currentAccessToken() && ! $user->tokenCan('super-admin')) {
             return response()->json([
                 'message' => 'Accès refusé',
             ], 403);
