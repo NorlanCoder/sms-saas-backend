@@ -1,58 +1,173 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SMS SaaS Backend
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+API backend de la plateforme SaaS B2B d'envoi de SMS, développée avec Laravel 13 et PHP 8.3. Elle expose un ensemble de routes REST versionnées permettant aux entreprises clientes de s'inscrire, de recharger des crédits prépayés, de configurer leurs destinations et leurs SENDER_ID, et d'envoyer des SMS via une interface web ou directement par API sécurisée (signature RSA). Un espace d'administration multi-rôles permet la supervision globale de la plateforme.
 
-## About Laravel
+## Aperçu
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Cette API gère :
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- l'inscription et la connexion des entreprises
+- la génération de clés RSA
+- les soldes et les transactions de crédits
+- l'envoi de SMS simple et en lot (`batch`)
+- les `SENDER_ID` et les pays autorisés par entreprise
+- les statistiques du tableau de bord
+- l'administration et la supervision globale (`multi-rôles`)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Stack technique
 
-## Learning Laravel
+| Technologie | Rôle |
+| --- | --- |
+| `PHP 8.3` | Langage de programmation |
+| `Laravel 13` | Framework principal |
+| `Laravel Sanctum` | Authentification par token |
+| `SQLite` | Base de données par défaut |
+| `PHPUnit` | Tests automatisés |
+| `Vite` | Compilation des assets frontend |
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Fonctionnalités
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- API REST versionnée (`v1`, `admin`, `super-admin`)
+- Authentification par token via `Laravel Sanctum`
+- Signature RSA pour les appels API sécurisés
+- Vérification du solde avant chaque envoi de SMS
+- Gestion des crédits et des recharges (`PawaPay`)
+- Logs SMS et export de rapports
+- Administration multi-rôles : `admin` et `super_admin`
+- Jobs Laravel pour les envois en masse via une queue
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Installation
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate --seed
+npm install
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Configuration
 
-## Contributing
+Le projet fournit un fichier `.env.example`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Variables importantes :
 
-## Code of Conduct
+| Variable | Description |
+| --- | --- |
+| `APP_URL` | URL publique de l'application |
+| `DB_CONNECTION` | Driver de base de données (`sqlite`, `mysql`, etc.) |
+| `DB_DATABASE` | Chemin ou nom de la base de données |
+| `QUEUE_CONNECTION` | Driver de queue (`sync`, `database`, `redis`, etc.) |
+| `PAWAPAY_API_KEY` | Clé API PawaPay pour les recharges de crédits |
+| `PAWAPAY_BASE_URL` | URL de l'API PawaPay |
+| `PAWAPAY_SANDBOX` | Active ou non le mode sandbox PawaPay |
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Lancement en local
 
-## Security Vulnerabilities
+La commande suivante lance simultanément le serveur Laravel, le worker de queue, les logs et Vite :
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+composer run dev
+```
 
-## License
+Alternative manuelle :
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan serve
+php artisan queue:listen --tries=1 --timeout=0
+npm run dev
+```
+
+L'API est accessible sur `http://localhost:8000`.
+
+## Comptes créés par les seeders
+
+| Rôle | Identifiants |
+| --- | --- |
+| Administrateur | `admin@sms-saas.com` / `Admin@1234` |
+| Super administrateur | `superadmin@sms-saas.com` / `SuperAdmin@1234` |
+
+## Endpoints principaux
+
+### Entreprises
+
+- `POST /api/v1/register`
+- `POST /api/v1/login`
+- `POST /api/v1/logout`
+- `POST /api/v1/logout-all`
+- `GET /api/v1/profile`
+- `PUT /api/v1/profile`
+- `PUT /api/v1/profile/password`
+- `DELETE /api/v1/profile`
+
+### Crédits
+
+- `GET /api/v1/credits/balance`
+- `POST /api/v1/credits/recharge`
+- `GET /api/v1/credits/transactions`
+
+### SMS
+
+- `POST /api/v1/sms/send`
+- `GET /api/v1/sms/logs`
+- `GET /api/v1/sms/status/{batchId}`
+- `POST /api/v1/send-sms`
+
+### Pays et expéditeurs
+
+- `GET /api/v1/countries`
+- `GET /api/v1/countries/active`
+- `POST /api/v1/countries/activate`
+- `POST /api/v1/countries/deactivate`
+- `GET /api/v1/sender-ids`
+- `POST /api/v1/sender-ids`
+- `GET /api/v1/sender-ids/{id}`
+- `DELETE /api/v1/sender-ids/{id}`
+
+### Administration
+
+- `POST /api/admin/login`
+- `POST /api/admin/logout`
+- `GET /api/admin/companies`
+- `GET /api/admin/sender-ids`
+- `GET /api/admin/countries`
+- `GET /api/admin/sms/logs`
+- `GET /api/admin/transactions`
+
+### Super-administration
+
+- `POST /api/super-admin/login`
+- `POST /api/super-admin/logout`
+
+## Tests
+
+```bash
+php artisan test
+```
+
+ou
+
+```bash
+composer test
+```
+
+## Structure du projet
+
+```text
+app/         Logique métier (Models, Controllers, Jobs, Services...)
+bootstrap/   Initialisation du framework
+config/      Fichiers de configuration
+database/    Migrations, factories et seeders
+public/      Point d'entrée HTTP
+resources/   Vues et assets
+routes/      Définition des routes
+tests/       Tests unitaires et fonctionnels
+```
+
+## Notes techniques
+
+- `SmsProviderService` utilise actuellement une réponse simulée pour l'envoi SMS.
+- `PawaPay` est intégré pour les recharges de crédits, avec un mode sandbox activable via `PAWAPAY_SANDBOX`.
+- Les envois en lot transitent par une queue Laravel pour garantir la fiabilité et éviter les timeouts.
+- La signature RSA est vérifiée via un middleware dédié appliqué aux routes d'envoi API.
