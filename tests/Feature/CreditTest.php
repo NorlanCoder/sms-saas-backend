@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\Transaction;
+use App\Services\FedaPayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class CreditTest extends TestCase
@@ -42,8 +44,19 @@ class CreditTest extends TestCase
         $company = Company::factory()->create(['solde' => 50.00]);
         $token = $company->createToken('test-token')->plainTextToken;
 
+        $this->mock(FedaPayService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('initiateTransaction')
+                ->once()
+                ->andReturn([
+                    'success' => true,
+                    'transaction_id' => 12345,
+                    'status' => 'pending',
+                    'message' => 'Une demande de paiement a ete envoyee sur votre telephone. Veuillez confirmer.',
+                ]);
+        });
+
         $response = $this->postJson('/api/v1/credits/recharge', [
-            'montant' => 100,
+            'montant' => 1000,
             'methode' => 'mobile_money',
             'phone' => '+221770000111',
         ], [
@@ -51,70 +64,51 @@ class CreditTest extends TestCase
             'Accept' => 'application/json',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(202)
+            ->assertJsonPath('status', 'pending');
 
-        $this->assertSame(150.0, (float) $company->fresh()->solde);
+        $this->assertSame(50.0, (float) $company->fresh()->solde);
         $this->assertDatabaseHas('transactions', [
             'company_id' => $company->id,
             'type' => 'recharge',
+            'payment_status' => 'pending',
+            'payment_method' => 'mobile_money',
         ]);
     }
 
-    public function test_can_recharge_with_pawapay_method(): void
+    public function test_recharge_returns_422_when_fedapay_initiation_fails(): void
     {
         $company = Company::factory()->create(['solde' => 200.00]);
         $token = $company->createToken('test-token')->plainTextToken;
 
+        $this->mock(FedaPayService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('initiateTransaction')
+                ->once()
+                ->andReturn([
+                    'success' => false,
+                    'message' => 'Impossible d\'initier le paiement : erreur test',
+                ]);
+        });
+
         $response = $this->postJson('/api/v1/credits/recharge', [
-            'montant' => 150,
-            'methode' => 'pawapay',
+            'montant' => 1000,
+            'methode' => 'mobile_money',
             'phone' => '+22996000000',
-            'pawapay_status' => 'success',
         ], [
             'Authorization' => 'Bearer '.$token,
             'Accept' => 'application/json',
         ]);
 
-        $response->assertStatus(200)
-            ->assertJsonPath('payment.provider', 'pawapay')
-            ->assertJsonPath('payment.status', 'success');
-
-        $this->assertSame(350.0, (float) $company->fresh()->solde);
-
-        $this->assertDatabaseHas('transactions', [
-            'company_id' => $company->id,
-            'type' => 'recharge',
-            'montant' => '150.00',
-            'description' => 'Recharge via pawapay',
-        ]);
-    }
-
-    public function test_pawapay_failure_does_not_add_credit(): void
-    {
-        $company = Company::factory()->create(['solde' => 200.00]);
-        $token = $company->createToken('test-token')->plainTextToken;
-
-        $response = $this->postJson('/api/v1/credits/recharge', [
-            'montant' => 150,
-            'methode' => 'pawapay',
-            'phone' => '+22996000000',
-            'pawapay_status' => 'failed',
-        ], [
-            'Authorization' => 'Bearer '.$token,
-            'Accept' => 'application/json',
-        ]);
-
-        $response->assertStatus(402)
-            ->assertJsonPath('payment.provider', 'pawapay')
-            ->assertJsonPath('payment.status', 'failed');
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Impossible d\'initier le paiement : erreur test');
 
         $this->assertSame(200.0, (float) $company->fresh()->solde);
 
-        $this->assertDatabaseMissing('transactions', [
+        $this->assertDatabaseHas('transactions', [
             'company_id' => $company->id,
             'type' => 'recharge',
-            'montant' => '150.00',
-            'description' => 'Recharge via pawapay',
+            'montant' => '1000.00',
+            'payment_status' => 'declined',
         ]);
     }
 
@@ -183,4 +177,93 @@ class CreditTest extends TestCase
             ->assertJsonPath('data.0.type', 'recharge')
             ->assertJsonPath('data.0.montant', '1000.00');
     }
+
+    public function test_webhook_rejects_invalid_signature_when_secret_is_configured(): void
+    {
+        config(['fedapay.webhook_secret' => 'test-secret']);
+
+        $company = Company::factory()->create(['solde' => 0.00]);
+        Transaction::query()->create([
+            'company_id' => $company->id,
+            'type' => 'recharge',
+            'montant' => 1000,
+            'description' => 'Recharge test webhook',
+            'fedapay_transaction_id' => '987654',
+            'payment_status' => 'pending',
+            'payment_method' => 'mobile_money',
+            'phone' => '+22996000000',
+        ]);
+
+        $payload = [
+            'name' => 'transaction.approved',
+            'data' => [
+                'transaction' => [
+                    'id' => '987654',
+                ],
+            ],
+        ];
+
+        $response = $this->withHeaders([
+            'X-FEDAPAY-SIGNATURE' => 'invalid-signature',
+            'Content-Type' => 'application/json',
+        ])->postJson('/api/v1/webhooks/fedapay', $payload);
+
+        $response->assertStatus(401)
+            ->assertJsonPath('message', 'Signature webhook invalide');
+
+        $this->assertSame(0.0, (float) $company->fresh()->solde);
+    }
+
+    public function test_webhook_approves_payment_and_credits_balance_with_valid_signature(): void
+    {
+        $secret = 'test-secret';
+        config(['fedapay.webhook_secret' => $secret]);
+
+        $company = Company::factory()->create(['solde' => 0.00]);
+        $transaction = Transaction::query()->create([
+            'company_id' => $company->id,
+            'type' => 'recharge',
+            'montant' => 2500,
+            'description' => 'Recharge test webhook valide',
+            'fedapay_transaction_id' => '123456',
+            'payment_status' => 'pending',
+            'payment_method' => 'mobile_money',
+            'phone' => '+22996000000',
+        ]);
+
+        $payload = [
+            'name' => 'transaction.approved',
+            'data' => [
+                'transaction' => [
+                    'id' => '123456',
+                ],
+            ],
+        ];
+
+        $rawPayload = json_encode($payload, JSON_THROW_ON_ERROR);
+        $signature = hash_hmac('sha256', $rawPayload, $secret);
+
+        $response = $this->call(
+            'POST',
+            '/api/v1/webhooks/fedapay',
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_FEDAPAY_SIGNATURE' => $signature,
+            ],
+            $rawPayload
+        );
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Webhook traite avec succes');
+
+        $this->assertSame(2500.0, (float) $company->fresh()->solde);
+        $this->assertDatabaseHas('transactions', [
+            'id' => $transaction->id,
+            'payment_status' => 'approved',
+        ]);
+    }
+
 }

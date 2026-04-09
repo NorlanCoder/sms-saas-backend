@@ -21,6 +21,10 @@ class Transaction extends Model
         'type',
         'montant',
         'description',
+        'fedapay_transaction_id',
+        'payment_status',
+        'payment_method',
+        'phone',
     ];
 
     /**
