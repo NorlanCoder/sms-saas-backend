@@ -102,9 +102,9 @@ class SmsAuthenticatedRouteTest extends TestCase
             ->assertJsonPath('message', 'SENDER_ID invalide ou non validé');
     }
 
-    public function test_authenticated_sms_send_route_debits_balance_after_pawapay_recharge(): void
+    public function test_authenticated_sms_send_route_debits_balance_after_manual_recharge(): void
     {
-        $company = Company::factory()->create(['solde' => 0.00]);
+        $company = Company::factory()->create(['solde' => 100.00]);
         $sender = SenderID::factory()->create([
             'company_id' => $company->id,
             'nom' => 'MYBRAND',
@@ -127,15 +127,6 @@ class SmsAuthenticatedRouteTest extends TestCase
         ]);
 
         Sanctum::actingAs($company);
-
-        $this->postJson('/api/v1/credits/recharge', [
-            'montant' => 100,
-            'methode' => 'pawapay',
-            'phone' => '+22996000000',
-            'pawapay_status' => 'success',
-        ])->assertOk();
-
-        $this->assertSame(100.0, (float) $company->fresh()->solde);
 
         $this->mock(SmsProviderService::class, function (MockInterface $mock): void {
             $mock->shouldReceive('send')

@@ -43,6 +43,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('credits')->group(function () {
             Route::get('/balance', [CreditController::class, 'balance']);
             Route::post('/recharge', [CreditController::class, 'recharge']);
+            Route::get('/recharge/{transactionId}/status', [CreditController::class, 'checkRechargeStatus']);
             Route::get('/transactions', [CreditController::class, 'transactions']);
         });
 
@@ -76,6 +77,11 @@ Route::prefix('v1')->group(function () {
 // Envoi SMS — protégé par signature RSA + rate limiting
 Route::middleware(['verify.api.signature', 'throttle:60,1'])->prefix('v1')->group(function () {
     Route::post('/send-sms', [SmsController::class, 'send']);
+});
+
+// Webhook FedaPay (route publique — appelée par FedaPay, pas par l'utilisateur)
+Route::prefix('v1')->group(function () {
+    Route::post('/webhooks/fedapay', [CreditController::class, 'webhook']);
 });
 
 // Statut batch — protégé par Sanctum
