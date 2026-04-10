@@ -1,42 +1,57 @@
 # SMS SaaS Backend
 
-API backend de la plateforme SaaS B2B d'envoi de SMS, développée avec Laravel 13 et PHP 8.3. Elle expose un ensemble de routes REST versionnées permettant aux entreprises clientes de s'inscrire, de recharger des crédits prépayés, de configurer leurs destinations et leurs SENDER_ID, et d'envoyer des SMS via une interface web ou directement par API sécurisée (signature RSA). Un espace d'administration multi-rôles permet la supervision globale de la plateforme.
+Backend API de la plateforme SaaS B2B d'envoi de SMS.  
+Ce service, construit avec **Laravel 13** et **PHP 8.3**, permet aux entreprises de :
 
-## Aperçu
+- creer un compte et se connecter ;
+- gerer leurs credits prepayes ;
+- activer les pays de destination ;
+- administrer leurs `SENDER_ID` ;
+- envoyer des SMS en mode simple, lot ou via API signee RSA ;
+- suivre les logs, transactions et statistiques.
 
-Cette API gère :
+## Apercu
 
-- l'inscription et la connexion des entreprises
-- la génération de clés RSA
-- les soldes et les transactions de crédits
-- l'envoi de SMS simple et en lot (`batch`)
-- les `SENDER_ID` et les pays autorisés par entreprise
-- les statistiques du tableau de bord
-- l'administration et la supervision globale (`multi-rôles`)
+Le backend expose une API REST versionnee autour de trois espaces :
+
+- **Entreprise** : authentification, profil, credits, pays, `SENDER_ID`, SMS, rapports.
+- **Administration** : supervision operationnelle des entreprises, logs, transactions et validation metier.
+- **Super administration** : acces global avec privileges eleves.
 
 ## Stack technique
 
-| Technologie | Rôle |
+| Outil | Version |
 | --- | --- |
-| `PHP 8.3` | Langage de programmation |
-| `Laravel 13` | Framework principal |
-| `Laravel Sanctum` | Authentification par token |
-| `SQLite` | Base de données par défaut |
-| `PHPUnit` | Tests automatisés |
-| `Vite` | Compilation des assets frontend |
+| PHP | 8.3+ |
+| Laravel | 13 |
+| Authentification | Sanctum |
+| Base de donnees | SQLite ou MySQL |
+| Tests | PHPUnit |
+| Front tooling | Vite, Tailwind CSS |
+| Paiement / recharge | PawaPay |
 
-## Fonctionnalités
+## Fonctionnalites principales
 
-- API REST versionnée (`v1`, `admin`, `super-admin`)
-- Authentification par token via `Laravel Sanctum`
-- Signature RSA pour les appels API sécurisés
-- Vérification du solde avant chaque envoi de SMS
-- Gestion des crédits et des recharges (`PawaPay`)
-- Logs SMS et export de rapports
-- Administration multi-rôles : `admin` et `super_admin`
-- Jobs Laravel pour les envois en masse via une queue
+- Authentification entreprise via token Sanctum
+- Gestion du profil et du mot de passe
+- Regeneration des cles API
+- Recharge et suivi des credits
+- Envoi de SMS unitaire et en masse
+- Signature RSA pour l'envoi via API externe
+- Logs SMS, historique de transactions et export de rapports
+- Administration multi-roles
 
-## Installation
+## Prerequis
+
+Avant de lancer le projet, assurez-vous d'avoir :
+
+- `PHP >= 8.3`
+- `Composer 2.x`
+- `Node.js >= 18`
+- `npm >= 9`
+- `SQLite` ou `MySQL 8+`
+
+## Installation rapide
 
 ```bash
 composer install
@@ -47,31 +62,81 @@ php artisan migrate --seed
 npm install
 ```
 
-## Configuration
+Si vous utilisez **MySQL**, adaptez les variables `DB_*` dans le fichier `.env`.
 
-Le projet fournit un fichier `.env.example`.
+## Configuration `.env`
 
-Variables importantes :
+### Variables principales
 
 | Variable | Description |
 | --- | --- |
 | `APP_URL` | URL publique de l'application |
-| `DB_CONNECTION` | Driver de base de données (`sqlite`, `mysql`, etc.) |
-| `DB_DATABASE` | Chemin ou nom de la base de données |
-| `QUEUE_CONNECTION` | Driver de queue (`sync`, `database`, `redis`, etc.) |
-| `PAWAPAY_API_KEY` | Clé API PawaPay pour les recharges de crédits |
+| `DB_CONNECTION` | `sqlite` ou `mysql` |
+| `DB_HOST` | Hote MySQL |
+| `DB_PORT` | Port MySQL |
+| `DB_DATABASE` | Nom de la base ou chemin SQLite |
+| `DB_USERNAME` | Utilisateur MySQL |
+| `DB_PASSWORD` | Mot de passe MySQL |
+| `QUEUE_CONNECTION` | `database`, `sync` ou autre driver configure |
+| `PAWAPAY_API_KEY` | Cle API PawaPay |
 | `PAWAPAY_BASE_URL` | URL de l'API PawaPay |
-| `PAWAPAY_SANDBOX` | Active ou non le mode sandbox PawaPay |
+| `PAWAPAY_SANDBOX` | `true` ou `false` |
+
+### Exemple de configuration SQLite
+
+```env
+DB_CONNECTION=sqlite
+QUEUE_CONNECTION=database
+PAWAPAY_SANDBOX=true
+```
+
+### Exemple de configuration MySQL
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=sms_saas
+DB_USERNAME=root
+DB_PASSWORD=secret
+QUEUE_CONNECTION=database
+```
+
+## Base de donnees et seeders
+
+### Executer les migrations
+
+```bash
+php artisan migrate
+php artisan migrate --seed
+php artisan migrate:fresh --seed
+```
+
+### Comptes crees par les seeders
+
+| Role | Email | Mot de passe |
+| --- | --- | --- |
+| Administrateur | `admin@sms-saas.com` | `Admin@1234` |
+| Super administrateur | `superadmin@sms-saas.com` | `SuperAdmin@1234` |
 
 ## Lancement en local
-
-La commande suivante lance simultanément le serveur Laravel, le worker de queue, les logs et Vite :
+ 
+### Mode recommande
 
 ```bash
 composer run dev
 ```
 
-Alternative manuelle :
+Cette commande lance en parallele :
+
+- le serveur Laravel ;
+- le worker de queue ;
+- les logs via Laravel Pail ;
+- Vite pour les assets.
+
+### Mode manuel
+
+Dans des terminaux separes :
 
 ```bash
 php artisan serve
@@ -79,95 +144,175 @@ php artisan queue:listen --tries=1 --timeout=0
 npm run dev
 ```
 
-L'API est accessible sur `http://localhost:8000`.
+API disponible par defaut sur : `http://localhost:8000`
 
-## Comptes créés par les seeders
+## Authentification et securite
 
-| Rôle | Identifiants |
-| --- | --- |
-| Administrateur | `admin@sms-saas.com` / `Admin@1234` |
-| Super administrateur | `superadmin@sms-saas.com` / `SuperAdmin@1234` |
+### Sanctum
 
-## Endpoints principaux
+Les routes entreprises, admin et super admin protegees utilisent l'authentification par token avec **Laravel Sanctum**.
 
-### Entreprises
+### Signature RSA
 
-- `POST /api/v1/register`
-- `POST /api/v1/login`
-- `POST /api/v1/logout`
-- `POST /api/v1/logout-all`
-- `GET /api/v1/profile`
-- `PUT /api/v1/profile`
-- `PUT /api/v1/profile/password`
-- `DELETE /api/v1/profile`
+Lors de l'inscription d'une entreprise, une paire de cles RSA est generee.  
+La route d'envoi externe verifie la signature grace au middleware `verify.api.signature`.
 
-### Crédits
+Exemple de signature cote client :
 
-- `GET /api/v1/credits/balance`
-- `POST /api/v1/credits/recharge`
-- `GET /api/v1/credits/transactions`
+```php
+openssl_sign(
+    json_encode($payload),
+    $signature,
+    $privateKey,
+    OPENSSL_ALGO_SHA256
+);
 
-### SMS
+$signatureBase64 = base64_encode($signature);
+```
 
-- `POST /api/v1/sms/send`
-- `GET /api/v1/sms/logs`
-- `GET /api/v1/sms/status/{batchId}`
-- `POST /api/v1/send-sms`
+## Routes API
 
-### Pays et expéditeurs
+### Entreprise
 
-- `GET /api/v1/countries`
-- `GET /api/v1/countries/active`
-- `POST /api/v1/countries/activate`
-- `POST /api/v1/countries/deactivate`
-- `GET /api/v1/sender-ids`
-- `POST /api/v1/sender-ids`
-- `GET /api/v1/sender-ids/{id}`
-- `DELETE /api/v1/sender-ids/{id}`
+| Methode | Route | Description |
+| --- | --- | --- |
+| `POST` | `/api/v1/register` | Inscription d'une entreprise |
+| `POST` | `/api/v1/login` | Connexion entreprise |
+| `POST` | `/api/v1/logout` | Revocation du token courant |
+| `POST` | `/api/v1/logout-all` | Deconnexion de tous les appareils |
+| `GET` | `/api/v1/profile` | Recuperer le profil |
+| `PUT` | `/api/v1/profile` | Mettre a jour le profil |
+| `PUT` | `/api/v1/profile/password` | Modifier le mot de passe |
+| `DELETE` | `/api/v1/profile` | Supprimer le compte |
+| `GET` | `/api/v1/keys` | Lister les cles API |
+| `POST` | `/api/v1/keys/regenerate` | Regenerer les cles API |
+| `GET` | `/api/v1/credits/balance` | Consulter le solde |
+| `POST` | `/api/v1/credits/recharge` | Recharger les credits |
+| `GET` | `/api/v1/credits/transactions` | Historique des transactions |
+| `GET` | `/api/v1/dashboard/stats` | Statistiques du dashboard |
+| `POST` | `/api/v1/sms/send` | Envoi simple ou en lot |
+| `GET` | `/api/v1/sms/logs` | Historique des SMS |
+| `GET` | `/api/v1/sms/status/{batchId}` | Statut d'un batch |
+| `GET` | `/api/v1/reports/export` | Export de rapport |
+| `GET` | `/api/v1/countries` | Lister les pays disponibles |
+| `GET` | `/api/v1/countries/active` | Pays actifs pour l'entreprise |
+| `POST` | `/api/v1/countries/activate` | Activer un pays |
+| `POST` | `/api/v1/countries/deactivate` | Desactiver un pays |
+| `GET` | `/api/v1/sender-ids` | Lister les `SENDER_ID` |
+| `POST` | `/api/v1/sender-ids` | Creer un `SENDER_ID` |
+| `GET` | `/api/v1/sender-ids/{id}` | Detail d'un `SENDER_ID` |
+| `DELETE` | `/api/v1/sender-ids/{id}` | Supprimer un `SENDER_ID` |
+
+### Envoi externe signe
+
+| Methode | Route | Description |
+| --- | --- | --- |
+| `POST` | `/api/v1/send-sms` | Envoi via signature RSA + rate limiting |
 
 ### Administration
 
-- `POST /api/admin/login`
-- `POST /api/admin/logout`
-- `GET /api/admin/companies`
-- `GET /api/admin/sender-ids`
-- `GET /api/admin/countries`
-- `GET /api/admin/sms/logs`
-- `GET /api/admin/transactions`
+| Methode | Route | Description |
+| --- | --- | --- |
+| `POST` | `/api/admin/login` | Connexion admin |
+| `POST` | `/api/admin/logout` | Deconnexion admin |
+| `GET` | `/api/admin/companies` | Liste des entreprises |
+| `GET` | `/api/admin/companies/{id}` | Detail d'une entreprise |
+| `PUT` | `/api/admin/companies/{id}/status` | Changer le statut d'une entreprise |
+| `GET` | `/api/admin/sender-ids` | Vue globale des `SENDER_ID` |
+| `PUT` | `/api/admin/sender-ids/{id}/approve` | Approuver un `SENDER_ID` |
+| `PUT` | `/api/admin/sender-ids/{id}/reject` | Rejeter un `SENDER_ID` |
+| `PUT` | `/api/admin/sender-ids/{id}/suspend` | Suspendre un `SENDER_ID` |
+| `GET` | `/api/admin/countries` | Vue globale des pays |
+| `PUT` | `/api/admin/countries/{id}/tariff` | Modifier le tarif SMS |
+| `PUT` | `/api/admin/countries/{id}/status` | Activer ou desactiver un pays |
+| `GET` | `/api/admin/sms/logs` | Logs SMS globaux |
+| `GET` | `/api/admin/transactions` | Transactions globales |
 
-### Super-administration
+### Super administration
 
-- `POST /api/super-admin/login`
-- `POST /api/super-admin/logout`
+| Methode | Route | Description |
+| --- | --- | --- |
+| `POST` | `/api/super-admin/login` | Connexion super admin |
+| `POST` | `/api/super-admin/logout` | Deconnexion super admin |
+| `GET` | `/api/super-admin/companies` | Liste des entreprises |
+| `GET` | `/api/super-admin/companies/{id}` | Detail d'une entreprise |
+| `PUT` | `/api/super-admin/companies/{id}/status` | Changer le statut d'une entreprise |
+| `GET` | `/api/super-admin/sender-ids` | Vue globale des `SENDER_ID` |
+| `PUT` | `/api/super-admin/sender-ids/{id}/approve` | Approuver un `SENDER_ID` |
+| `PUT` | `/api/super-admin/sender-ids/{id}/reject` | Rejeter un `SENDER_ID` |
+| `PUT` | `/api/super-admin/sender-ids/{id}/suspend` | Suspendre un `SENDER_ID` |
+| `GET` | `/api/super-admin/countries` | Vue globale des pays |
+| `PUT` | `/api/super-admin/countries/{id}/tariff` | Modifier le tarif SMS |
+| `PUT` | `/api/super-admin/countries/{id}/status` | Activer ou desactiver un pays |
+| `GET` | `/api/super-admin/sms/logs` | Logs SMS globaux |
+| `GET` | `/api/super-admin/transactions` | Transactions globales |
+
+## Structure du projet
+
+```text
+app/
+  Http/Controllers/     Controleurs API, admin et super admin
+  Http/Middleware/      Middlewares de securite et journalisation
+  Http/Requests/        Validation des requetes
+  Jobs/                 Traitements asynchrones
+  Models/               Modeles Eloquent
+  Services/             Services metier (SMS, credits, RSA, PawaPay)
+database/
+  migrations/           Structure de la base de donnees
+  seeders/              Donnees initiales
+routes/api.php          Definition des routes API
+tests/                  Tests unitaires et fonctionnels
+config/                 Configuration Laravel
+public/                 Point d'entree HTTP
+```
 
 ## Tests
 
 ```bash
 php artisan test
-```
-
-ou
-
-```bash
+php artisan test --filter NomDuTest
 composer test
 ```
 
-## Structure du projet
+Le projet contient des tests unitaires et des tests fonctionnels pour les flux critiques.
 
-```text
-app/         Logique métier (Models, Controllers, Jobs, Services...)
-bootstrap/   Initialisation du framework
-config/      Fichiers de configuration
-database/    Migrations, factories et seeders
-public/      Point d'entrée HTTP
-resources/   Vues et assets
-routes/      Définition des routes
-tests/       Tests unitaires et fonctionnels
+## Deploiement
+
+```bash
+composer install --no-dev --optimize-autoloader
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan queue:work --daemon --tries=3
 ```
+
+Configuration recommandee en production :
+
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- variables `DB_*` correctement renseignees
+- worker de queue supervise via **Supervisor** ou un service equivalent
 
 ## Notes techniques
 
-- `SmsProviderService` utilise actuellement une réponse simulée pour l'envoi SMS.
-- `PawaPay` est intégré pour les recharges de crédits, avec un mode sandbox activable via `PAWAPAY_SANDBOX`.
-- Les envois en lot transitent par une queue Laravel pour garantir la fiabilité et éviter les timeouts.
-- La signature RSA est vérifiée via un middleware dédié appliqué aux routes d'envoi API.
+- `SmsProviderService` repose actuellement sur une reponse simulee a remplacer par un fournisseur reel.
+- `PawaPayService` gere les recharges de credits avec mode sandbox activable.
+- les envois en masse passent par une queue Laravel pour eviter les timeouts HTTP ;
+- la verification RSA protege l'endpoint d'envoi externe.
+
+## Contribution
+
+```bash
+git checkout -b feat/ma-fonctionnalite
+php artisan test
+```
+
+Bonnes pratiques attendues :
+
+- respecter les conventions Laravel ;
+- ajouter ou mettre a jour les tests ;
+- ouvrir une Pull Request claire vers la branche cible ;
+- decrire precisement les changements fonctionnels et techniques.
